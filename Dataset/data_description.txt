@@ -1,0 +1,13 @@
+KonTum _daily_data.csv		- Chỉ số update theo ngày.
+	wind		- wind speed (m/s)
+	maxTemp		- max temperature (deg C)
+	minTemp		- min temperature (deg C)
+	humidity	- humidity (%)
+	solarR		- solar radiation (MJ/m^2/d) 
+	discharge	- discharge (m^3/s) (tiêu thụ)
+	rain		- rainfall (mm)	(lượng mưa)
+	waterlevel	- water level (m)  (mực nước)
+KonTum_monthly_evaporation.csv	- Chỉ số update theo tháng.
+	evp		- evaporation (mm) (bốc hơi)
+
+note: maxTemp = minTemp từ 1985 - 31/12/2008.
