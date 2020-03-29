@@ -11,7 +11,9 @@ import yaml
 
 
 class simpleRNN:
-    def __init__(self, **kwargs):
+    def __init__(self,mode, **kwargs):
+        self.mode = mode
+
         self.log_dir = kwargs.get('log_dir')
         self._data_kwargs = kwargs.get('data')
         self._model_kwargs = kwargs.get('model')
@@ -56,21 +58,25 @@ class simpleRNN:
         return model
 
     def train_model(self):
-        callbacks = []
-        #lr_schedule = LearningRateScheduler(lambda epoch: 1e-8 * 10**(epoch / 20))
-        early_stop = EarlyStopping(monitor='val_loss',patience=self.patience,restore_best_weights=True)
-        checkpoint = ModelCheckpoint(self.log_dir + 'best_model.hdf5',monitor='val_loss',verbose=1,save_best_only=True)
-        
-        #callbacks.append(lr_schedule)
-        callbacks.append(early_stop)
-        callbacks.append(checkpoint)
-        
-        history = self.model.fit(x=self.data[0],y=self.data[1],
-                                batch_size=self.batch_size,epochs=self.epochs,
-                                callbacks=callbacks,validation_data=(self.data[2],self.data[3]))
-        
-        if history is not None:
-            self.plot_training_history(history)
+        if self.mode == 'train':
+            callbacks = []
+            #lr_schedule = LearningRateScheduler(lambda epoch: 1e-8 * 10**(epoch / 20))
+            early_stop = EarlyStopping(monitor='val_loss',patience=self.patience,restore_best_weights=True)
+            checkpoint = ModelCheckpoint(self.log_dir + 'best_model.hdf5',monitor='val_loss',verbose=1,save_best_only=True)
+            
+            #callbacks.append(lr_schedule)
+            callbacks.append(early_stop)
+            callbacks.append(checkpoint)
+            
+            history = self.model.fit(x=self.data[0],y=self.data[1],
+                                    batch_size=self.batch_size,epochs=self.epochs,
+                                    callbacks=callbacks,validation_data=(self.data[2],self.data[3]))
+            
+            if history is not None:
+                self.plot_training_history(history)
+        elif self.mode == 'test':
+            self.model.load_weights(self.log_dir + 'best_model.hdf5')
+            print('Load weight from ' + self.log_dir)
     
     def plot_training_history(self,history):
         fig = plt.figure(figsize=(10, 6))
@@ -96,9 +102,27 @@ class simpleRNN:
 
 
 if __name__ == '__main__':
+    import sys
+    import os
+    import argparse
+
+    sys.path.append(os.getcwd())
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--mode', default='train', type=str,
+                        help='Run mode.')
+    args = parser.parse_args()
+
+
     with open('./Config/SimpleRNN/params.yaml','r') as f:
         config = yaml.load(f)
-
-    simple_rnn = simpleRNN(**config)
-    simple_rnn.train_model()
-    simple_rnn.predict_and_plot()
+    if args.mode == 'train':
+        simple_rnn = simpleRNN(args.mode,**config)
+        simple_rnn.train_model()
+        simple_rnn.predict_and_plot()
+    elif args.mode == "test":
+        simple_rnn = simpleRNN(args.mode,**config)
+        simple_rnn.train_model()
+        simple_rnn.predict_and_plot()
+    else:
+        raise RuntimeError('Mode must be train or test!')
