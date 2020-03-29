@@ -1,0 +1,10 @@
+log_dir: Log/SimpleRNN/
+data:
+  data_file: ProcessedData/Ban Don.csv
+  split_point: 0.1
+model:
+  window_size: 6
+  batch_size: 32
+  epochs: 200
+  input_dim: 2
+  patience: 30
