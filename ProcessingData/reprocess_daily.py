@@ -25,7 +25,7 @@ def extract_data(dataframe,window_size=5,cols=[],mode='l2'):
     ys = []
     for i in range(dataframe.shape[0] - window_size - 1):
         xs.append(dataframe[i:i+window_size,cols])
-        ys.append(dataframe[i+window_size,[5,7]].reshape(1,2))
+        ys.append(dataframe[i+window_size,[7,5]].reshape(1,2))
 
     return np.array(xs),np.array(ys)
 
@@ -43,8 +43,8 @@ def ed_extract_data(dataframe,window_size=5,cols=[],mode='l2'):
         en_x.append(dataframe[i:i + window_size,cols])
 
         #decoder input is q and h of 'window-size' days before
-        de_x.append(dataframe[i:i + window_size,[5,7]])
-        de_y.append(dataframe[i + window_size,[5,7]].reshape(1,2))
+        de_x.append(dataframe[i:i + window_size,[7,5]])
+        de_y.append(dataframe[i + window_size,[7,5]].reshape(1,2))
 
     return np.array(en_x),np.array(de_x),np.array(de_y)
 

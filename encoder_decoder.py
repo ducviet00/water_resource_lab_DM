@@ -65,20 +65,24 @@ class simpleRNN:
 
     def build_model(self):
         encoder_inputs = Input(shape=(None, self.input_dim))
-        conv1d = Conv1D(filters=5,kernel_size=3,strides=1,padding='valid',activation='tanh')(encoder_inputs)
-        encoder = Bidirectional(LSTM(64, return_state=True, dropout=self.dropout))
-        encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(conv1d)
+        conv1d = Conv1D(filters=16,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(encoder_inputs)
+        conv1d_2 = Conv1D(filters=32,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(conv1d)
+        encoder = Bidirectional(LSTM(128, return_state=True, dropout=self.dropout))
+        encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(conv1d_2)
         state_h = Concatenate()([forward_h, backward_h])
         state_c = Concatenate()([forward_c, backward_c])
         encoder_states = [state_h, state_c]
 
         # decoder
         decoder_inputs = Input(shape=(None, 2))    
-        decoder_lstm = LSTM(128, return_sequences=True, return_state=False)
-        decoder_outputs_1 = decoder_lstm(decoder_inputs, initial_state=encoder_states)
-        #decoder_dense_1 = Dense(units=32,activation='relu')(decoder_outputs_1)
+        decoder_lstm_1 = LSTM(256, return_sequences=True, return_state=False)
+        decoder_outputs_1 = decoder_lstm_1(decoder_inputs, initial_state=encoder_states)
+        decoder_lstm_2 = LSTM(256, return_sequences=True, return_state=False)
+        decoder_outputs_2 = decoder_lstm_2(decoder_outputs_1)
+        decoder_dense_1 = Dense(units=64,activation='relu')(decoder_outputs_2)
+        #decoder_dense_2 = Dense(units=32,activation='relu')(decoder_dense_1)
         decoder_dense = Dense(units=2, activation='relu')
-        decoder_outputs = decoder_dense(decoder_outputs_1)
+        decoder_outputs = decoder_dense(decoder_dense_1)
 
         model = Model(inputs=[encoder_inputs,decoder_inputs],outputs=decoder_outputs)
 
