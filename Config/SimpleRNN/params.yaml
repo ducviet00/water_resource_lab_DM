@@ -1,10 +1,20 @@
 log_dir: Log/SimpleRNN/
 data:
-  data_file: ProcessedData/Ban Don.csv
+  data_file: RawData/Kontum-daily.csv
   split_point: 0.1
+  norm_method: l2
+  cols_x:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
 model:
-  window_size: 6
+  window_size: 5
   batch_size: 32
-  epochs: 200
-  input_dim: 2
+  epochs: 450
+  input_dim: 8
   patience: 30
