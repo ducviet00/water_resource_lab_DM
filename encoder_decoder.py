@@ -38,20 +38,23 @@ class simpleRNN:
 
 
     def generate_data(self):
-        dat = pd.read_csv(self.data_file)
-
-        train_size = int(len(dat.index) * (1 - self.dt_split_point))
-        test_size = int(train_size * self.dt_split_point / 2)
-
-        dat_train = dat.iloc[:train_size,:]
-        dat_val = dat.iloc[train_size:-test_size,:]
-        dat_test = dat.iloc[-test_size:,:]
+        dat = pd.read_csv(self.data_file,header=0,index_col=0)
+        dat = dat.drop('time',axis=1)
+        dat = dat.to_numpy()
 
         data = {}
+        data['shape'] = dat.shape
 
-        en_x_train, de_x_train, de_y_train = ed_extract_data(dataframe=dat_train,window_size=self.window_size,cols=self.cols_x,mode=self.norm_method)
-        en_x_val, de_x_val, de_y_val = ed_extract_data(dataframe=dat_val,window_size=self.window_size,cols=self.cols_x,mode=self.norm_method)
-        en_x_test, de_x_test, de_y_test = ed_extract_data(dataframe=dat_test,window_size=self.window_size,cols=self.cols_x,mode=self.norm_method)
+        train_size = int(dat.shape[0] * (1 - self.dt_split_point))
+        test_size = int(train_size * self.dt_split_point / 2)
+
+        dat_train = dat[:train_size,:]
+        dat_val = dat[train_size:-test_size,:]
+        dat_test = dat[-test_size:,:]
+        
+        en_x_train, de_x_train, de_y_train, scaler = ed_extract_data(dataframe=dat_train,window_size=self.window_size,cols=self.cols_x,mode=self.norm_method)
+        en_x_val, de_x_val, de_y_val, _ = ed_extract_data(dataframe=dat_val,window_size=self.window_size,cols=self.cols_x,mode=self.norm_method)
+        en_x_test, de_x_test, de_y_test, _ = ed_extract_data(dataframe=dat_test,window_size=self.window_size,cols=self.cols_x,mode=self.norm_method)
         
         for cat in ["train", "val", "test"]:
             e_x, d_x, d_y = locals()["en_x_" + cat], locals()[
@@ -60,26 +63,29 @@ class simpleRNN:
             data["en_x_" + cat] = e_x
             data["de_x_" + cat] = d_x
             data["de_y_" + cat] = d_y
-
+        
+        data['scaler'] = scaler
         return data
 
     def build_model(self):
         encoder_inputs = Input(shape=(None, self.input_dim))
-        conv1d = Conv1D(filters=16,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(encoder_inputs)
-        conv1d_2 = Conv1D(filters=32,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(conv1d)
+        conv1d = Conv1D(filters=5,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(encoder_inputs)
+        #conv1d_2 = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(conv1d)
         encoder = Bidirectional(LSTM(128, return_state=True, dropout=self.dropout))
-        encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(conv1d_2)
+        encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(conv1d)
         state_h = Concatenate()([forward_h, backward_h])
         state_c = Concatenate()([forward_c, backward_c])
         encoder_states = [state_h, state_c]
 
         # decoder
-        decoder_inputs = Input(shape=(None, 2))    
+        decoder_inputs = Input(shape=(None, 3))    
+        #de_conv1d = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(decoder_inputs)
+        #de_conv1d_2 = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(de_conv1d)
         decoder_lstm_1 = LSTM(256, return_sequences=True, return_state=False)
         decoder_outputs_1 = decoder_lstm_1(decoder_inputs, initial_state=encoder_states)
         decoder_lstm_2 = LSTM(256, return_sequences=True, return_state=False)
         decoder_outputs_2 = decoder_lstm_2(decoder_outputs_1)
-        decoder_dense_1 = Dense(units=64,activation='relu')(decoder_outputs_2)
+        decoder_dense_1 = Dense(units=32,activation='relu')(decoder_outputs_2)
         #decoder_dense_2 = Dense(units=32,activation='relu')(decoder_dense_1)
         decoder_dense = Dense(units=2, activation='relu')
         decoder_outputs = decoder_dense(decoder_dense_1)
@@ -117,8 +123,10 @@ class simpleRNN:
             self.model.load_weights(self.log_dir + 'best_model.hdf5')
             print('Load weight from ' + self.log_dir)
 
-        #from keras.utils.vis_utils import plot_model
-        #plot_model(model=self.model, to_file=self.log_dir + '/model.png', show_shapes=True)
+        from keras.utils.vis_utils import plot_model
+        import os
+        os.environ["PATH"] += os.pathsep + 'D:/Graphviz2.38/bin/'
+        plot_model(model=self.model, to_file=self.log_dir + '/model.png', show_shapes=True)
     
     def plot_training_history(self,history):
         fig = plt.figure(figsize=(10, 6))
@@ -131,11 +139,12 @@ class simpleRNN:
         #plt.semilogx(history.history["lr"], history.history["loss"])
 
         plt.savefig(self.log_dir + 'training_phase.png')
-        plt.show()
+        #plt.show()
 
     def predict_and_plot(self):
-        results = self.model.predict(x=[self.data['en_x_test'],self.data['de_x_test']])
-        
+        results = self.model.predict(x=[self.data['en_x_test'],self.data['de_x_test']],batch_size=self.batch_size)
+        print(f'The output shape: {results.shape}')
+
         fig = plt.figure(figsize=(10, 6))
         fig.add_subplot(121)
         plt.plot(self.data['de_y_test'][:,0,0],label='ground_truth_H')
@@ -148,21 +157,51 @@ class simpleRNN:
         plt.legend()
 
         plt.savefig(self.log_dir + 'predict.png')
-        plt.show()
+        #plt.show()
+        #print(results[:,1,0])
         return results
 
+    def retransform_prediction(self):
+        result = self.predict_and_plot()
+
+        mask = np.zeros(self.data['shape'])
+        test_shape = self.data['de_y_test'].shape[0]
+        
+        mask[-test_shape:,[7,5]] = self.data['de_y_test'][:,0,:]
+        actual_data = self.data['scaler'].inverse_transform(mask)[-test_shape:,[7,5]]
+
+        mask[-test_shape:,[7,5]] = result[:,0,:]
+        actual_predict = self.data['scaler'].inverse_transform(mask)[-test_shape:,[7,5]]
+
+        return actual_data, actual_predict
+        
     def evaluate_model(self):
         #score = self.model.evaluate(x=self.data[4], y=self.data[5],verbose=1)
         from sklearn.metrics import mean_squared_error,mean_absolute_error, explained_variance_score
-        result = self.predict_and_plot()
+        actual_dat,actual_pre = self.retransform_prediction()
         
-        variance_score_h = explained_variance_score(self.data['de_y_test'][:,0,0],result[:,0,0])
-        mse_h = mean_squared_error(self.data['de_y_test'][:,0,0],result[:,0,0])
-        mae_h = mean_absolute_error(self.data['de_y_test'][:,0,0],result[:,0,0])
+        variance_score_h = explained_variance_score(actual_dat[:,0],actual_pre[:,0])
+        mse_h = mean_squared_error(actual_dat[:,0],actual_pre[:,0])
+        mae_h = mean_absolute_error(actual_dat[:,0],actual_pre[:,0])
 
-        variance_score_q = explained_variance_score(self.data['de_y_test'][:,0,1],result[:,0,1])
-        mse_q = mean_squared_error(self.data['de_y_test'][:,0,1],result[:,0,1])
-        mae_q = mean_absolute_error(self.data['de_y_test'][:,0,1],result[:,0,1])
+        variance_score_q = explained_variance_score(actual_dat[:,1],actual_pre[:,1])
+        mse_q = mean_squared_error(actual_dat[:,1],actual_pre[:,1])
+        mae_q = mean_absolute_error(actual_dat[:,1],actual_pre[:,1])
+
+        fig = plt.figure(figsize=(10, 6))
+        fig.add_subplot(121)
+        plt.plot(actual_dat[:,0],label='actual_ground_truth_H')
+        plt.plot(actual_pre[:,0],label='actual_predict_H')
+        plt.legend()
+
+        fig.add_subplot(122)
+        plt.plot(actual_dat[:,1],label='ground_truth_Q')
+        plt.plot(actual_pre[:,1],label='predict_Q')
+        plt.legend()
+
+        plt.savefig(self.log_dir + 'predict_actual.png')
+        #plt.show()
+
         with open(self.log_dir + 'evaluate_score.txt', 'a') as f:
             f.write(f'Model: H: R2: {variance_score_h} MSE: {mse_h} MAE: {mae_h} \nQ: R2: {variance_score_q} MSE: {mse_q} MAE: {mae_q} \n\n')
 
@@ -185,9 +224,11 @@ if __name__ == '__main__':
         simple_rnn = simpleRNN(args.mode,**config)
         simple_rnn.train_model()
         simple_rnn.evaluate_model()
+        #simple_rnn.retransform_prediction()
     elif args.mode == "test":
         simple_rnn = simpleRNN(args.mode,**config)
         simple_rnn.train_model()
         simple_rnn.evaluate_model()
+        #simple_rnn.retransform_prediction()
     else:
         raise RuntimeError('Mode must be train or test!')
