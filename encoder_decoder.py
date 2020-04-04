@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import yaml
 
 
-class simpleRNN:
+class EncoderDecoder:
     def __init__(self,mode, **kwargs):
         self.mode = mode
 
@@ -78,7 +78,7 @@ class simpleRNN:
         encoder_states = [state_h, state_c]
 
         # decoder
-        decoder_inputs = Input(shape=(None, 3))    
+        decoder_inputs = Input(shape=(None, 2))    
         #de_conv1d = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(decoder_inputs)
         #de_conv1d_2 = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(de_conv1d)
         decoder_lstm_1 = LSTM(256, return_sequences=True, return_state=False)
@@ -221,14 +221,14 @@ if __name__ == '__main__':
     with open('./Config/EncoderDecoder/config.yaml','r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
     if args.mode == 'train':
-        simple_rnn = simpleRNN(args.mode,**config)
-        simple_rnn.train_model()
-        simple_rnn.evaluate_model()
+        ed_model = EncoderDecoder(args.mode,**config)
+        ed_model.train_model()
+        ed_model.evaluate_model()
         #simple_rnn.retransform_prediction()
     elif args.mode == "test":
-        simple_rnn = simpleRNN(args.mode,**config)
-        simple_rnn.train_model()
-        simple_rnn.evaluate_model()
+        ed_model = EncoderDecoder(args.mode,**config)
+        ed_model.train_model()
+        ed_model.evaluate_model()
         #simple_rnn.retransform_prediction()
     else:
         raise RuntimeError('Mode must be train or test!')
