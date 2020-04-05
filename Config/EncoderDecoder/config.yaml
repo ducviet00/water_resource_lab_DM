@@ -14,7 +14,7 @@ data:
     - 7
 model:
   window_size: 3
-  batch_size: 64
+  batch_size: 128
   epochs: 450
   input_dim: 8
   patience: 50
