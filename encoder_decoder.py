@@ -21,12 +21,15 @@ class EncoderDecoder:
         self.data_file = self._data_kwargs.get('data_file')
         self.dt_split_point = self._data_kwargs.get('split_point')
         self.cols_x = self._data_kwargs.get('cols_x')
+        self.cols_y = self._data_kwargs.get('cols_y')
+        self.target_timestep = self._data_kwargs.get('target_timestep')
         self.norm_method = self._data_kwargs.get('norm_method')
 
         self.window_size = self._model_kwargs.get('window_size')
         self.batch_size = self._model_kwargs.get('batch_size')
         self.epochs = self._model_kwargs.get('epochs')
         self.input_dim = self._model_kwargs.get('input_dim')
+        self.output_dim = self._model_kwargs.get('output_dim')
         self.patience = self._model_kwargs.get('patience')
         self.dropout = self._model_kwargs.get('dropout')
         self.lr_decay = self._model_kwargs.get('lr_decay')
@@ -48,13 +51,14 @@ class EncoderDecoder:
         train_size = int(dat.shape[0] * (1 - self.dt_split_point))
         test_size = int(train_size * self.dt_split_point / 2)
 
-        dat_train = dat[:train_size,:]
-        dat_val = dat[train_size:-test_size,:]
-        dat_test = dat[-test_size:,:]
-        
-        en_x_train, de_x_train, de_y_train, scaler = ed_extract_data(dataframe=dat_train,window_size=self.window_size,cols=self.cols_x,mode=self.norm_method)
-        en_x_val, de_x_val, de_y_val, _ = ed_extract_data(dataframe=dat_val,window_size=self.window_size,cols=self.cols_x,mode=self.norm_method)
-        en_x_test, de_x_test, de_y_test, _ = ed_extract_data(dataframe=dat_test,window_size=self.window_size,cols=self.cols_x,mode=self.norm_method)
+        en_x, de_x, de_y, scaler = ed_extract_data(dataframe=dat,window_size=self.window_size,
+                                                    target_timstep=self.target_timestep,
+                                                    cols_x=self.cols_x,cols_y=self.cols_y,
+                                                    mode=self.norm_method)
+
+        en_x_train, de_x_train, de_y_train = en_x[:train_size,:], de_x[:train_size,:],de_y[:train_size,:]
+        en_x_val, de_x_val, de_y_val = en_x[train_size:-test_size,:], de_x[train_size:-test_size,:],de_y[train_size:-test_size,:]
+        en_x_test, de_x_test, de_y_test = en_x[-test_size:,:], de_x[-test_size:,:],de_y[-test_size:,:]
         
         for cat in ["train", "val", "test"]:
             e_x, d_x, d_y = locals()["en_x_" + cat], locals()[
@@ -69,16 +73,17 @@ class EncoderDecoder:
 
     def build_model(self):
         encoder_inputs = Input(shape=(None, self.input_dim))
-        #conv1d = Conv1D(filters=5,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(encoder_inputs)
+        conv1d = Conv1D(filters=16,kernel_size=2,strides=1,padding='same')
+        conv_out = conv1d(encoder_inputs)
         #conv1d_2 = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(conv1d)
         encoder = Bidirectional(LSTM(256, return_state=True, dropout=self.dropout))
-        encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(encoder_inputs)
+        encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(conv_out)
         state_h = Concatenate()([forward_h, backward_h])
         state_c = Concatenate()([forward_c, backward_c])
         encoder_states = [state_h, state_c]
 
         # decoder
-        decoder_inputs = Input(shape=(None, 2))    
+        decoder_inputs = Input(shape=(None, self.output_dim))    
         #de_conv1d = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(decoder_inputs)
         #de_conv1d_2 = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(de_conv1d)
         decoder_lstm_1 = LSTM(512, return_sequences=True, return_state=False)
@@ -96,7 +101,7 @@ class EncoderDecoder:
         #optimizer = RMSprop(learning_rate=1e-6)
         model.compile(loss= 'mse',
                     optimizer='adam',
-                    metrics=['mae','accuracy'])
+                    metrics=['mae','accuracy','mape'])
         
         return model
 
@@ -147,13 +152,13 @@ class EncoderDecoder:
 
         fig = plt.figure(figsize=(10, 6))
         fig.add_subplot(121)
-        plt.plot(self.data['de_y_test'][:,0,0],label='ground_truth_H')
-        plt.plot(results[:,0,0],label='predict_H')
+        plt.plot(self.data['de_y_test'][:,0,0],label='ground_truth_Q')
+        plt.plot(results[:,0,0],label='predict_Q')
         plt.legend()
 
         fig.add_subplot(122)
-        plt.plot(self.data['de_y_test'][:,0,1],label='ground_truth_Q')
-        plt.plot(results[:,0,1],label='predict_Q')
+        plt.plot(self.data['de_y_test'][:,0,1],label='ground_truth_H')
+        plt.plot(results[:,0,1],label='predict_H')
         plt.legend()
 
         plt.savefig(self.log_dir + 'predict.png')
@@ -167,11 +172,11 @@ class EncoderDecoder:
         mask = np.zeros(self.data['shape'])
         test_shape = self.data['de_y_test'].shape[0]
         
-        mask[-test_shape:,[7,5]] = self.data['de_y_test'][:,0,:]
-        actual_data = self.data['scaler'].inverse_transform(mask)[-test_shape:,[7,5]]
+        mask[-test_shape:,self.cols_y] = self.data['de_y_test'][:,0,:]
+        actual_data = self.data['scaler'].inverse_transform(mask)[-test_shape:,self.cols_y]
 
-        mask[-test_shape:,[7,5]] = result[:,0,:]
-        actual_predict = self.data['scaler'].inverse_transform(mask)[-test_shape:,[7,5]]
+        mask[-test_shape:,self.cols_y] = result[:,0,:]
+        actual_predict = self.data['scaler'].inverse_transform(mask)[-test_shape:,self.cols_y]
 
         return actual_data, actual_predict
         
@@ -180,23 +185,23 @@ class EncoderDecoder:
         from sklearn.metrics import mean_squared_error,mean_absolute_error, explained_variance_score
         actual_dat,actual_pre = self.retransform_prediction()
         
-        variance_score_h = explained_variance_score(actual_dat[:,0],actual_pre[:,0])
-        mse_h = mean_squared_error(actual_dat[:,0],actual_pre[:,0])
-        mae_h = mean_absolute_error(actual_dat[:,0],actual_pre[:,0])
+        variance_score_q = explained_variance_score(actual_dat[:,0],actual_pre[:,0])
+        mse_q = mean_squared_error(actual_dat[:,0],actual_pre[:,0])
+        mae_q = mean_absolute_error(actual_dat[:,0],actual_pre[:,0])
 
-        variance_score_q = explained_variance_score(actual_dat[:,1],actual_pre[:,1])
-        mse_q = mean_squared_error(actual_dat[:,1],actual_pre[:,1])
-        mae_q = mean_absolute_error(actual_dat[:,1],actual_pre[:,1])
+        variance_score_h = explained_variance_score(actual_dat[:,1],actual_pre[:,1])
+        mse_h = mean_squared_error(actual_dat[:,1],actual_pre[:,1])
+        mae_h = mean_absolute_error(actual_dat[:,1],actual_pre[:,1])
 
         fig = plt.figure(figsize=(10, 6))
         fig.add_subplot(121)
-        plt.plot(actual_dat[:,0],label='actual_ground_truth_H')
-        plt.plot(actual_pre[:,0],label='actual_predict_H')
+        plt.plot(actual_dat[:,0],label='actual_ground_truth_Q')
+        plt.plot(actual_pre[:,0],label='actual_predict_Q')
         plt.legend()
 
         fig.add_subplot(122)
-        plt.plot(actual_dat[:,1],label='ground_truth_Q')
-        plt.plot(actual_pre[:,1],label='predict_Q')
+        plt.plot(actual_dat[:,1],label='ground_truth_H')
+        plt.plot(actual_pre[:,1],label='predict_H')
         plt.legend()
 
         plt.savefig(self.log_dir + 'predict_actual.png')
@@ -217,6 +222,7 @@ if __name__ == '__main__':
                         help='Run mode.')
     args = parser.parse_args()
 
+    np.random.seed(911)
 
     with open('./Config/EncoderDecoder/config.yaml','r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)

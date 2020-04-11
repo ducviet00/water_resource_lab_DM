@@ -16,34 +16,37 @@ def normalize_data(dataframe,mode):
         return data_norm, minmax
 
 def extract_data(dataframe,window_size=5,cols=[],mode='l2'):
-    dataframe = dataframe.drop('time',axis=1)
-    dataframe = dataframe.to_numpy()
-    
-    dataframe, _ = normalize_data(dataframe,mode)
+    dataframe, scaler = normalize_data(dataframe,mode)
 
     xs = []
     ys = []
+    
     for i in range(dataframe.shape[0] - window_size - 1):
         xs.append(dataframe[i:i+window_size,cols])
         ys.append(dataframe[i+window_size,[7,5]].reshape(1,2))
 
-    return np.array(xs),np.array(ys)
+    return np.array(xs),np.array(ys), scaler
 
-def ed_extract_data(dataframe,window_size=5,cols=[],mode='l2'):
+def ed_extract_data(dataframe,window_size=5,target_timstep=1,cols_x=[],cols_y=[],mode='l2'):
     dataframe, scaler = normalize_data(dataframe,mode)
 
     en_x = []
     de_x = []
     de_y = []
 
-    for i in range(dataframe.shape[0] - window_size - 1):
-        en_x.append(dataframe[i:i + window_size,cols])
+    for i in range(dataframe.shape[0] - window_size - target_timstep):
+        en_x.append(dataframe[i:i + window_size,cols_x])
 
         #decoder input is q and h of 'window-size' days before
-        de_x.append(dataframe[i + window_size - 1,[7,5]].reshape(1,2))
-        de_y.append(dataframe[i + window_size,[7,5]].reshape(1,2))
+        de_x.append(dataframe[i + window_size - 1: i + window_size + target_timstep -1,cols_y].reshape(target_timstep,len(cols_y)))
+        de_y.append(dataframe[i + window_size : i + window_size + target_timstep,cols_y].reshape(target_timstep,len(cols_y)))
 
-    return np.array(en_x),np.array(de_x),np.array(de_y),scaler
+    en_x = np.array(en_x)
+    de_x = np.array(de_x)
+    de_y = np.array(de_y)
+    de_x[0,:,:] = 0
+    
+    return en_x,de_x,de_y, scaler
 
 def atted_extract_data(dataframe,window_size=5,cols=[],mode='l2'):
     dataframe, scaler = normalize_data(dataframe,mode)
@@ -80,8 +83,12 @@ if __name__ == '__main__':
     #print(dataframe.head())
     cols = list(range(8))
     #print(cols)
-    en_x, de_x, de_y, scaler = atted_extract_data(dataframe=dataframe,cols=cols,mode='min_max')
+    en_x, de_x, de_y = ed_extract_data(dataframe=dataframe,cols_x=cols,cols_y=[5],target_timstep=5,mode='min_max')
     
     print(de_x.shape)
     #de_y = scaler.inverse_transform(de_y.reshape(de_y.shape[0],2,))
     print(de_x[:5])
+
+    print(en_x[:5])
+
+    print(de_y[:5])
