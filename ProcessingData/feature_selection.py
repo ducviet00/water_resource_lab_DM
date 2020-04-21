@@ -12,14 +12,18 @@ def univariate_selection(data):
 
     fit_q = best_feature.fit(X,y_q)
     score_q = pd.DataFrame(fit_q.scores_)
+    p_val_q = fit_q.pvalues_
 
     fit_h = best_feature.fit(X,y_h)
     score_h = fit_h.scores_
+    p_val_h = fit_h.pvalues_
 
     dt_cols = pd.DataFrame(X.columns)
     feature_scores = pd.concat([dt_cols,score_q],axis=1)
     feature_scores.columns=['feature','score_q']
+    feature_scores['p_val_q'] = p_val_q
     feature_scores['score_h'] = score_h
+    feature_scores['p_val_h'] = p_val_h
 
     print(feature_scores) #NOTE: the result show that wind, max-min temp has lowest score, then comes solar_r
 

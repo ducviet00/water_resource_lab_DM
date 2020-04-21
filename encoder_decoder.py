@@ -73,35 +73,35 @@ class EncoderDecoder:
 
     def build_model(self):
         encoder_inputs = Input(shape=(None, self.input_dim))
-        conv1d = Conv1D(filters=16,kernel_size=2,strides=1,padding='same')
-        conv_out = conv1d(encoder_inputs)
-        #conv1d_2 = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(conv1d)
-        encoder = Bidirectional(LSTM(256, return_state=True, dropout=self.dropout))
-        encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(conv_out)
+        # conv1d = Conv1D(filters=16,kernel_size=2,strides=1,padding='same')
+        # conv_out = conv1d(encoder_inputs)
+        encoder = Bidirectional(LSTM(128, return_state=True))
+        encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(encoder_inputs)
         state_h = Concatenate()([forward_h, backward_h])
         state_c = Concatenate()([forward_c, backward_c])
         encoder_states = [state_h, state_c]
 
         # decoder
         decoder_inputs = Input(shape=(None, self.output_dim))    
-        #de_conv1d = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(decoder_inputs)
-        #de_conv1d_2 = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(de_conv1d)
-        decoder_lstm_1 = LSTM(512, return_sequences=True, return_state=False)
-        decoder_outputs_1 = decoder_lstm_1(decoder_inputs, initial_state=encoder_states)
-        #decoder_lstm_2 = LSTM(256, return_sequences=True, return_state=False)
-        #decoder_outputs_2 = decoder_lstm_2(decoder_outputs_1)
-        #decoder_dense_1 = Dense(units=32,activation='relu')(decoder_outputs_1)
-        #decoder_dense_2 = Dense(units=32,activation='relu')(decoder_dense_1)
-        decoder_dense = TimeDistributed(Dense(units=2, activation='relu'))
-        decoder_outputs = decoder_dense(decoder_outputs_1)
+        #de_in_concat = Concatenate(axis=-1)([decoder_inputs,encoder_outputs])
+        decoder_lstm_1 = LSTM(256, return_sequences=True, return_state=True,dropout=self.dropout)
+        decoder_outputs_1, d_state_h, d_state_c = decoder_lstm_1(decoder_inputs, initial_state=encoder_states)
+        dc_input = Concatenate(axis=-1)([decoder_inputs,decoder_outputs_1])
+        decoder_lstm_2 = LSTM(256, return_sequences=True, return_state=False,dropout=self.dropout)
+        decoder_outputs_2 = decoder_lstm_2(dc_input,initial_state=[d_state_h,d_state_c])
+        #decoder_dense_1 = Dense(units=32,activation='relu')(decoder_outputs_2)
+        decoder_dense = TimeDistributed(Dense(units=self.output_dim))
+        decoder_outputs = decoder_dense(decoder_outputs_2)
 
         model = Model(inputs=[encoder_inputs,decoder_inputs],outputs=decoder_outputs)
 
         #optimizer = SGD(lr=1e-6, momentum=0.9,decay=self.lr_decay,nesterov=True)
-        #optimizer = RMSprop(learning_rate=1e-6)
+        #optimizer = RMSprop(learning_rate=5e-3)
+        #optimizer = Adadelta(rho=0.95)
+        #optimizer = Adam(learning_rate=5e-2,amsgrad=False)
         model.compile(loss= 'mse',
                     optimizer='adam',
-                    metrics=['mae','accuracy','mape'])
+                    metrics=['mae','mape'])
         
         return model
 
@@ -131,13 +131,14 @@ class EncoderDecoder:
         from keras.utils.vis_utils import plot_model
         import os
         os.environ["PATH"] += os.pathsep + 'D:/Graphviz2.38/bin/'
-        plot_model(model=self.model, to_file=self.log_dir + '/model.png', show_shapes=True)
+        plot_model(model=self.model, to_file=self.log_dir + '/model_dup.png', show_shapes=True)
     
     def plot_training_history(self,history):
         fig = plt.figure(figsize=(10, 6))
         #fig.add_subplot(121)
         plt.plot(history.history['loss'],label='loss')
         plt.plot(history.history['val_loss'],label='val_loss')
+        plt.plot(history.history['mae'],label='mae')
         plt.legend()
         
         #fig.add_subplot(122)
@@ -182,14 +183,14 @@ class EncoderDecoder:
         
     def evaluate_model(self):
         #score = self.model.evaluate(x=self.data[4], y=self.data[5],verbose=1)
-        from sklearn.metrics import mean_squared_error,mean_absolute_error, explained_variance_score
+        from sklearn.metrics import mean_squared_error,mean_absolute_error, r2_score
         actual_dat,actual_pre = self.retransform_prediction()
         
-        variance_score_q = explained_variance_score(actual_dat[:,0],actual_pre[:,0])
+        variance_score_q = r2_score(actual_dat[:,0],actual_pre[:,0])
         mse_q = mean_squared_error(actual_dat[:,0],actual_pre[:,0])
         mae_q = mean_absolute_error(actual_dat[:,0],actual_pre[:,0])
 
-        variance_score_h = explained_variance_score(actual_dat[:,1],actual_pre[:,1])
+        variance_score_h = r2_score(actual_dat[:,1],actual_pre[:,1])
         mse_h = mean_squared_error(actual_dat[:,1],actual_pre[:,1])
         mae_h = mean_absolute_error(actual_dat[:,1],actual_pre[:,1])
 
@@ -215,6 +216,10 @@ if __name__ == '__main__':
     import os
     import argparse
 
+    import keras.backend as K 
+
+    K.clear_session()
+
     sys.path.append(os.getcwd())
     parser = argparse.ArgumentParser()
     
@@ -222,7 +227,7 @@ if __name__ == '__main__':
                         help='Run mode.')
     args = parser.parse_args()
 
-    np.random.seed(911)
+    np.random.seed(69)
 
     with open('./Config/EncoderDecoder/config.yaml','r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)

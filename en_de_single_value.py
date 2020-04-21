@@ -56,6 +56,9 @@ class EncoderDecoder:
                                                     target_timstep=self.target_timestep,
                                                     cols_x=self.cols_x,cols_y=self.cols_y,
                                                     mode=self.norm_method)
+        
+        #debug purpose
+        #print(de_y[-5:])
 
         en_x_train, de_x_train, de_y_train = en_x[:train_size,:], de_x[:train_size,:],de_y[:train_size,:]
         en_x_val, de_x_val, de_y_val = en_x[train_size:-test_size,:], de_x[train_size:-test_size,:],de_y[train_size:-test_size,:]
@@ -69,30 +72,31 @@ class EncoderDecoder:
             data["de_x_" + cat] = d_x
             data["de_y_" + cat] = d_y
         
-        data['scaler'] = scaler
+        data['scaler'] = scaler 
         return data
 
     def build_model(self):
         encoder_inputs = Input(shape=(None, self.input_dim))
         conv1d = Conv1D(filters=16,kernel_size=2,strides=1,padding='same')
         conv_out = conv1d(encoder_inputs)
-        #conv1d_2 = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(conv1d)
-        encoder = Bidirectional(LSTM(256, return_state=True, dropout=self.dropout))
+        encoder = Bidirectional(LSTM(128, return_state=True,return_sequences=False))
         encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(conv_out)
+
         state_h = Concatenate()([forward_h, backward_h])
         state_c = Concatenate()([forward_c, backward_c])
         encoder_states = [state_h, state_c]
 
         # decoder
         decoder_inputs = Input(shape=(None, self.output_dim))    
-        #de_conv1d = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(decoder_inputs)
-        #de_conv1d_2 = Conv1D(filters=8,kernel_size=2,strides=1,padding='valid',activation='sigmoid')(de_conv1d)
-        decoder_lstm_1 = LSTM(512, return_sequences=True, return_state=False)
+        #de_in_concat = Concatenate(axis=-1)([decoder_inputs,encoder_outputs])
+        decoder_lstm_1 = LSTM(256, return_sequences=True, return_state=False,dropout=self.dropout)
         decoder_outputs_1 = decoder_lstm_1(decoder_inputs, initial_state=encoder_states)
-        #decoder_lstm_2 = LSTM(256, return_sequences=True, return_state=False)
-        #decoder_outputs_2 = decoder_lstm_2(decoder_outputs_1)
-        decoder_dense_1 = Dense(units=32,activation='relu')(decoder_outputs_1)
-        #decoder_dense_2 = Dense(units=32,activation='relu')(decoder_dense_1)
+        dc_input = Concatenate(axis=-1)([decoder_inputs,decoder_outputs_1])
+        # decoder_lstm_2 = LSTM(256, return_sequences=True, return_state=False,dropout=self.dropout)
+        # decoder_outputs_2 = decoder_lstm_2(decoder_outputs_1)
+
+        decoder_dense_1 = Dense(units=64,activation='relu')(dc_input)
+
         decoder_dense = TimeDistributed(Dense(units=self.output_dim))
         decoder_outputs = decoder_dense(decoder_dense_1)
 
@@ -104,7 +108,7 @@ class EncoderDecoder:
         #optimizer = Adam(learning_rate=5e-2,amsgrad=False)
         model.compile(loss= 'mse',
                     optimizer='adam',
-                    metrics=['mae','mape'])
+                    metrics=['mae','mape']) #NOTE: mae make eval score better, but on graph look worse
         
         return model
 
@@ -141,6 +145,7 @@ class EncoderDecoder:
         #fig.add_subplot(121)
         plt.plot(history.history['loss'],label='loss')
         plt.plot(history.history['val_loss'],label='val_loss')
+        plt.plot(history.history['mae'],label='mae')
         plt.legend()
         
         #fig.add_subplot(122)
@@ -202,10 +207,45 @@ class EncoderDecoder:
             with open(self.log_dir + 'evaluate_score.txt', 'a') as f:
                 f.write(f'Model: {i+1} R2: {r2} Variance: {variance_score} MSE: {mse} MAE: {mae} \n\n')
 
+    def roll_predict(self):
+        test_size = self.data['en_x_test'].shape[0]
+        
+        predict = []
+        actual = []
+
+        for i in range(0,test_size,self.target_timestep):
+            actual += self.data['de_y_test'][i].tolist()
+            yhat = self.model.predict(x=[np.expand_dims(self.data['en_x_test'][i],axis=0)
+                                        ,np.expand_dims(self.data['de_x_test'][i],axis=0)],batch_size=1)
+            predict += yhat.tolist()
+
+        predict = np.array(predict).flatten()
+        actual = np.array(actual).flatten()
+
+        from sklearn.metrics import mean_squared_error,mean_absolute_error, explained_variance_score, r2_score
+
+        r2 = r2_score(actual,predict)
+        variance_score = explained_variance_score(actual,predict)
+        mse = mean_squared_error(actual,predict)
+        mae = mean_absolute_error(actual,predict)
+
+        print(f'R2:{r2} variace:{variance_score} MSE:{mse} MAE:{mae}')
+
+        fig = plt.figure(figsize=(10,6))
+        plt.plot(actual,label='ground_truth')
+        plt.plot(predict,label='predict_value')
+        plt.legend()
+        plt.savefig(self.log_dir + f'roll_predict_{self.target_name}.png')
+        #plt.show()
+
 if __name__ == '__main__':
     import sys
     import os
     import argparse
+
+    import keras.backend as K 
+
+    K.clear_session()
 
     sys.path.append(os.getcwd())
     parser = argparse.ArgumentParser()
@@ -214,7 +254,7 @@ if __name__ == '__main__':
                         help='Run mode.')
     args = parser.parse_args()
 
-    np.random.seed(911)
+    np.random.seed(69)
 
     with open('./Config/EncoderDecoder/SingleValue/config.yaml','r') as f:
         config = yaml.load(f,Loader=yaml.FullLoader)
@@ -222,11 +262,13 @@ if __name__ == '__main__':
         ed_model = EncoderDecoder(args.mode,**config)
         ed_model.train_model()
         ed_model.evaluate_model()
+        ed_model.roll_predict()
         #simple_rnn.retransform_prediction()
     elif args.mode == "test":
         ed_model = EncoderDecoder(args.mode,**config)
         ed_model.train_model()
         ed_model.evaluate_model()
+        ed_model.roll_predict()
         #simple_rnn.retransform_prediction()
     else:
         raise RuntimeError('Mode must be train or test!')

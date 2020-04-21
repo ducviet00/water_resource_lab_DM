@@ -17,12 +17,12 @@ def acf_pacf(data,col):
 
     X = data.iloc[:,col]
 
-    fig = plt.figure(figsize=(10,6))
-    sub_1 = fig.add_subplot(121)
-    plot_acf(x=X,ax=sub_1)
+    #fig = plt.figure(figsize=(10,6))
+    #sub_1 = fig.add_subplot(121)
+    plot_acf(x=X,lags=400)
     
-    sub_2 = fig.add_subplot(122)
-    plot_pacf(x=X,ax=sub_2)
+    # sub_2 = fig.add_subplot(122)
+    # plot_pacf(x=X,ax=sub_2)
     #NOTE: for H the ac > 0.8 for 4 timesteps, for Q only 1 timestep is related
     plt.show()
 
@@ -77,9 +77,9 @@ if __name__ == '__main__':
     #month = data_group()
     #print(month.head())
     data = data.drop('time',axis=1)
-    #acf_pacf(data,5)
+    acf_pacf(data,5)
     #data_analyse(data)
     #data = data.drop('time',axis=1)
     #data = data.to_numpy()
-    plot_Q_H_data(data)
+    #plot_Q_H_data(data)
     #print(data.shape)

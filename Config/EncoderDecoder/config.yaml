@@ -2,19 +2,19 @@ log_dir: Log/EncoderDecoder/
 data:
   data_file: RawData/Kontum-daily.csv
   split_point: 0.15
-  norm_method: min_max
+  norm_method: std
   cols_x:
     - 3
     - 4
-    - 7
-    - 6
     - 5
+    - 6
+    - 7
   cols_y:
     - 5
     - 7
   target_timestep: 1
 model:
-  window_size: 2
+  window_size: 3
   batch_size: 128
   epochs: 300
   input_dim: 5
