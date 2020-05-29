@@ -9,6 +9,8 @@ data:
     - 5
     - 6
     - 7
+    - 9
+    - 10
   cols_y:
     - 5
     - 7
@@ -16,9 +18,9 @@ data:
 model:
   window_size: 5
   batch_size: 128
-  epochs: 350
-  input_dim: 5
+  epochs: 450
+  input_dim: 7
   output_dim: 2
   patience: 50
-  dropout: 0
+  dropout: 0.1
   lr_decay: 0.000001

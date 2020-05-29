@@ -39,11 +39,15 @@ def estimate_p_d_q(data,col):
 
         #H is also nearly statinary, d =0 , pcorr show that should take  p = 1, q = 5
 
-def train(data,col,target_timestep=5):
-    #data = data_group()
-    X = data.iloc[:,col].values
+def train(data,col,target_timestep=1):
+    data = data.iloc[:,col]
+    #diff_dat = data.diff().dropna(axis=0)
+    
+    X = data.values
+    print(X.shape)
+    print(X[:5])
 
-    train, test = X[:-795], X[-795:]
+    train, test = X[:672], X[672:]
     # model = ARIMA(train,order=(1,0,5))
     # model_fit = model.fit(disp=0)
     # print(model_fit.summary())
@@ -54,13 +58,13 @@ def train(data,col,target_timestep=5):
     his = [x for x in train] #copy train set
     i = 0
     while i <= len(test) - target_timestep:
-        model = ARIMA(his,order=(1,0,5)) #roll forecasting
+        model = ARIMA(his,order=(1,0,1)) #roll forecasting
         model_fit = model.fit(disp=0)
 
         out, se, conf = model_fit.forecast(target_timestep) #predict 15 timesteps
 
         predict += list(out)
-        his += list(test[i:i+target_timestep]) #after predict 15 day, append the real value of that day to the training set
+        his += list(out) #after predict 15 day, append the real value of that day to the training set
         i += target_timestep
         #print(f'Expect val: {test[i]}, Predict val: {yhat}')
 
@@ -85,10 +89,11 @@ if __name__=='__main__':
     # import os
     # sys.path.append('../')
     # print(sys.path)
-    data = pd.read_csv('./RawData/Kontum-daily.csv',header=0,index_col=0)
-    data = data.drop('time',axis=1)
-    #estimate_p_d_q(data,7)
-    train(data,7)
+    data = pd.read_csv('./RawData/urqua_river.csv',header=None,sep='\t')
+    #data = data.drop('time',axis=1)
+    data = data.dropna(axis=0)
+    #estimate_p_d_q(data,2)
+    train(data,2)
 
     
         
