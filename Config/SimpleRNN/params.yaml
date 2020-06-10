@@ -1,0 +1,22 @@
+log_dir: Log/SimpleRNN/
+data:
+  data_file: RawData/Kontum-daily.csv
+  split_point: 0.15
+  norm_method: min_max
+  cols_x:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+model:
+  window_size: 10
+  batch_size: 128
+  epochs: 450
+  input_dim: 8
+  patience: 100
+  dropout: 0
+  lr_decay: 0.000001

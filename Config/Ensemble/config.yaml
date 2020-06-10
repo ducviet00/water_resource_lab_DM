@@ -1,0 +1,28 @@
+log_dir: Log/Ensemble/
+data:
+  data_file: RawData/Kontum-daily.csv
+  split_point_outer: 0.08
+  split_point_inner: 0.45
+  norm_method: min_max
+  cols_x:
+    - 4
+    - 5
+    - 6
+    - 7
+    - 9
+    - 10
+  cols_y:
+    - 5
+    - 7
+  window_size: 5
+  target_timestep: 1
+model:
+  epoch_min: 100
+  epoch_max: 250
+  epoch_step: 50
+  epochs_out: 400
+  in_dim: 6
+  out_dim: 2
+  patience: 50
+  batch_size: 128
+  dropout: 0
