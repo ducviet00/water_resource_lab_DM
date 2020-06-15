@@ -1,3 +1,14 @@
+import math
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, median_absolute_error, mean_squared_log_error
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.tsa.arima_model import ARMA, ARIMA
+from statsmodels.tsa.ar_model import AR
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.graphics.tsaplots import plot_pacf
+from statsmodels.graphics.tsaplots import plot_acf
+import statsmodels.api as sm
+import pandas as pd
 import warnings
 import itertools
 from datetime import datetime
@@ -6,20 +17,6 @@ import matplotlib.pyplot as plt
 warnings.filterwarnings("ignore")
 plt.style.use('fivethirtyeight')
 
-import pandas as pd
-
-import statsmodels.api as sm
-from statsmodels.graphics.tsaplots import plot_acf
-from statsmodels.graphics.tsaplots import plot_pacf
-from statsmodels.tsa.stattools import adfuller
-from statsmodels.tsa.seasonal import seasonal_decompose
-from statsmodels.tsa.ar_model import AR
-from statsmodels.tsa.arima_model import ARMA, ARIMA
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, median_absolute_error, mean_squared_log_error
-
-import math
 
 #from ProcessingData.correlation import data_group
 plt.rcParams.update({'figure.figsize': (20, 12), 'figure.dpi': 120})
@@ -60,10 +57,10 @@ def estimate_p_d_q(X):
     ax3[0].set_title('2-Differenced series')
 
     plt.savefig('./acf_pacf.png')
-    #plt.show()
+    # plt.show()
 
 
-def model_ARIMA(y, param=(2,0,2), timestep=5):
+def model_ARIMA(y, param=(2, 0, 2), timestep=5):
     warnings.filterwarnings("ignore")
 
     train = y[:int(0.85*(len(y)))]
@@ -73,15 +70,13 @@ def model_ARIMA(y, param=(2,0,2), timestep=5):
     his = train  # copy train set
     predict = []
 
-
     for i in range(0, len(test), timestep):
-        
-        print( f'{i*100 / len(test):.3}%')
+
+        print(f'{i*100 / len(test):.3}%')
 
         step = min(len(test)-i, timestep)
-        
-        model = ARIMA(his, order=param).fit(disp=False)
 
+        model = ARIMA(his, order=param).fit(disp=False)
 
         yhat, se, conf = model.forecast(step)
         predict += list(yhat)
@@ -99,18 +94,19 @@ def model_ARIMA(y, param=(2,0,2), timestep=5):
     plt.plot(predict, label='predict')
     plt.legend(loc='best')
 
-    #plt.savefig('./predict.png')
+    # plt.savefig('./predict.png')
     plt.show()
     return r2, predict
+
 
 def test_aic_pdq(y, p=range(1, 8), d=range(0, 13), q=range(0, 13)):
 
     warnings.filterwarnings("ignore")
-    
+
     print("Running")
     train = y[:int(0.85*(len(y)))]
     valid = y[int(0.85 * (len(y))):]
-    
+
     pdq = list(itertools.product(p, d, q))
 
     print(len(pdq))
@@ -118,7 +114,7 @@ def test_aic_pdq(y, p=range(1, 8), d=range(0, 13), q=range(0, 13)):
     import math
     min_aic = math.inf
     max_r2 = -math.inf
-    
+
     min_aic_param = max_r2_param = None
 
     for param in pdq:
@@ -153,18 +149,14 @@ def test_aic_pdq(y, p=range(1, 8), d=range(0, 13), q=range(0, 13)):
 
 if __name__ == '__main__':
 
-    dateparse = lambda dates: datetime.strptime(dates, '%d/%m/%Y')
-    #data = pd.read_csv('SonTay.csv,
+    def dateparse(dates): return datetime.strptime(dates, '%d/%m/%Y')
+    # data = pd.read_csv('SonTay.csv,
     #                  parse_dates=['date'], index_col='date', date_parser=dateparse)
-    data = pd.read_csv('Kontum-daily.csv')           
-    
+    data = pd.read_csv('Kontum-daily.csv')
+
     y = data['discharge']
-
-
-
-
-    #estimate_p_d_q(y)
+    # estimate_p_d_q(y)
 
     #min_aic_param, max_r2_param = test_aic_pdq(y)
 
-    model_ARIMA(y, (1,0,1))
+    model_ARIMA(y, (1, 0, 1))
