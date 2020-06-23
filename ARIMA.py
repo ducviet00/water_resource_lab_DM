@@ -160,3 +160,4 @@ if __name__ == '__main__':
     #min_aic_param, max_r2_param = test_aic_pdq(y)
 
     model_ARIMA(y, (1, 0, 1))
+    
