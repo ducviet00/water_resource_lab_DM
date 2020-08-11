@@ -5,23 +5,24 @@ import matplotlib.pyplot as plt
 
 
 def data_generate(raw_dat, pre_range=5):
-    raw_dat.iloc[:, 3] = raw_dat.iloc[:, 3] / 35.315
+    #raw_dat.iloc[:, 3] = raw_dat.iloc[:, 3] / 35.315
 
     for i in range(pre_range):
-        raw_dat[f'pre_{i+1}'] = raw_dat.iloc[:, 3].shift(periods=i + 1, axis=0)
+        raw_dat[f'pre_q_{i+1}'] = raw_dat.iloc[:, 4].shift(periods=i + 1, axis=0)
+        raw_dat[f'pre_h_{i+1}'] = raw_dat.iloc[:, 3].shift(periods=i + 1, axis=0)
 
     raw_dat = raw_dat.dropna(axis=0, how='any')
-    raw_dat.index = pd.to_datetime(raw_dat['datetime'])
+    raw_dat.index = pd.to_datetime(raw_dat['date'], dayfirst=True)
     #raw_dat['dayofweek'] = raw_dat.index.dayofweek
     raw_dat['month'] = raw_dat.index.month
     raw_dat['year'] = raw_dat.index.year
     raw_dat['dayofyear'] = raw_dat.index.dayofyear
     raw_dat['dayofmonth'] = raw_dat.index.day
-    raw_dat['weekofyear'] = raw_dat.index.weekofyear
+    #raw_dat['weekofyear'] = raw_dat.index.weekofyear
     #raw_dat['hour'] = raw_dat.index.hour
-    raw_dat = raw_dat.drop(['status', 'datetime'], axis=1)
+    raw_dat = raw_dat.drop(['date'], axis=1)
     print(raw_dat.head(10))
-    raw_dat.to_csv('./ProcessedData/urqua_daily.csv', index=True)
+    raw_dat.to_csv('./ProcessedData/SonTay.csv', index=True)
 
     # cols = [
     #     'wind', 'min_temp', 'max_temp', 'solar_r', 'humidity', 'discharge',
@@ -39,10 +40,7 @@ def data_generate(raw_dat, pre_range=5):
     return raw_dat
 
 
-def feature_importances_xgboost(dataset,
-                                cols_feature,
-                                train_per=0.2,
-                                valid_per=0.2):
+def feature_importances_xgboost(dataset, cols_feature, train_per=0.2, valid_per=0.2):
     #dataset = dataset.to_numpy()
     X = dataset[:, 3:]
     Y = dataset[:, 2]
@@ -84,9 +82,7 @@ def feature_importances_xgboost(dataset,
     feature_importances = list(zip(cols_feature, model.feature_importances_))
     feature_importances = sorted(feature_importances, key=lambda x: x[1])
 
-    plt.bar(range(3, dataset.shape[1]),
-            model.feature_importances_,
-            orientation='vertical')
+    plt.bar(range(3, dataset.shape[1]), model.feature_importances_, orientation='vertical')
     plt.show()
     # make predictions for test data and evaluate
     y_pred = model.predict(X_test)
@@ -105,31 +101,23 @@ def feature_importances_xgboost(dataset,
 
 
 if __name__ == '__main__':
-    # data = pd.read_csv('./RawData/urqua_river.csv',header=None,sep='\t',names=['year','month','discharge'])
-    # data = data.dropna(axis=0)
-    # #dat = data_generate(data)
-    # dat = pd.read_csv('./ProcessedData/urqua_river.csv',header=0).dropna(axis=0)
+    # data = pd.read_csv('./ProcessedData/urqua_daily.csv',
+    #                    header=0,
+    #                    index_col=0)
 
-    data = pd.read_csv('./ProcessedData/urqua_daily.csv',
-                       header=0,
-                       index_col=0)
-    #import numpy as np
-    #data['discharge'] = data['discharge'].to_numeric()
-    # data['discharge'] = pd.to_numeric(data['discharge'], errors='coerce')
-    # dat = data_generate(data, pre_range=5)
-    # print(data.dtypes)
-    # print(data.head())
+    # dat = data.to_numpy()
 
-    dat = data.to_numpy()
+    # feature_importances_xgboost(dat,
+    #                             cols_feature=[
+    #                                 'pre_1', 'pre_2', 'pre_3', 'pre_4',
+    #                                 'pre_5', 'month', 'year', 'dayofyear',
+    #                                 'dayofmonth', 'weekofyear'
+    #                             ],
+    #                             train_per=0.6,
+    #                             valid_per=0.3)
 
-    feature_importances_xgboost(dat,
-                                cols_feature=[
-                                    'pre_1', 'pre_2', 'pre_3', 'pre_4',
-                                    'pre_5', 'month', 'year', 'dayofyear',
-                                    'dayofmonth', 'weekofyear'
-                                ],
-                                train_per=0.6,
-                                valid_per=0.3)
+    data = pd.read_csv('./RawData/Hanoi/SonTay.csv', header=0, index_col=None)
+    data_generate(data, 3)
 
     #NOTE: XGBoost bring result MAE: 18.04024713150927 MSE: 4213.707219770521 R2: 0.6476693828870468
     #NOTE:  For daily dataset urqua MAE: 42.545505091653354 MSE: 21377.726272764718 R2: 0.7224047581105089

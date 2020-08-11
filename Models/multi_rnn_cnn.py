@@ -6,29 +6,25 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 def model_builder(input_dim=5, output_dim=2, target_timestep=1, dropout=0.1):
     input = Input(shape=(None, input_dim))
 
-    # conv = Conv1D(filters=16, kernel_size=2, strides=1, padding='same')
-    # conv_out = conv(input)
-    # conv_2 = Conv1D(filters=32, kernel_size=3, padding='same')
-    # conv_out_2 = conv_2(conv_out)
-    # conv_3 = Conv1D(filters=64, kernel_size=4, padding='same')
-    # conv_out_3 = conv_3(conv_out_2)
+    conv = Conv1D(filters=16, kernel_size=2, strides=1, padding='same')
+    conv_out = conv(input)
+    conv_2 = Conv1D(filters=32, kernel_size=3, padding='same')
+    conv_out_2 = conv_2(conv_out)
+    conv_3 = Conv1D(filters=64, kernel_size=4, padding='same')
+    conv_out_3 = conv_3(conv_out_2)
 
-    # rnn_1 = Bidirectional(
-    #     LSTM(units=128,
-    #          return_sequences=True,
-    #          return_state=True,
-    #          dropout=dropout,
-    #          recurrent_dropout=dropout))
-    # rnn_out_1, forward_h, forward_c, backward_h, backward_c = rnn_1(conv_out_3)
-    # state_h = Concatenate(axis=-1)([forward_h, backward_h])
-    # state_c = Concatenate(axis=-1)([forward_c, backward_c])
+    rnn_1 = Bidirectional(
+        LSTM(units=128, return_sequences=True, return_state=True, dropout=dropout, recurrent_dropout=dropout))
+    rnn_out_1, forward_h, forward_c, backward_h, backward_c = rnn_1(conv_out_3)
+    state_h = Concatenate(axis=-1)([forward_h, backward_h])
+    state_c = Concatenate(axis=-1)([forward_c, backward_c])
 
-    # rnn_2 = Bidirectional(LSTM(units=128,return_sequences=False))
-    # rnn_out_2 = rnn_2(rnn_out_1,initial_state=[forward_h,forward_c,backward_h,backward_c])
+    # rnn_2 = Bidirectional(LSTM(units=128, return_sequences=False))
+    # rnn_out_2 = rnn_2(rnn_out_1, initial_state=[forward_h, forward_c, backward_h, backward_c])
 
-    rnn_3 = LSTM(units=64, return_sequences=False, return_state=False, dropout=dropout, recurrent_dropout=dropout)
-    #rnn_out_3 = rnn_3(rnn_out_1, initial_state=[state_h, state_c])
-    rnn_out_3 = rnn_3(input)
+    rnn_3 = LSTM(units=256, return_sequences=False, return_state=False, dropout=dropout, recurrent_dropout=dropout)
+    rnn_out_3 = rnn_3(rnn_out_1, initial_state=[state_h, state_c])
+    #rnn_out_3 = rnn_3(input)
 
     # rnn_4_in = Concatenate(axis=-1)([rnn_out_2,rnn_out_3])
     # rnn_4 = LSTM(units=256,return_sequences=False)

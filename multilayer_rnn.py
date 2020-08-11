@@ -39,15 +39,6 @@ class MultiRNN:
 
     def generate_data(self):
         dat = pd.read_csv(self.data_file, header=0, index_col=0)
-        #dat = dat.drop('time', axis=1)
-
-        # dat_gen = pd.read_csv('./ProcessedData/GeneratedData/mean_gen.csv',
-        #                       header=0,
-        #                       index_col=None)
-        dat_q = pd.read_csv('./RawData/discharge_daily.csv', header=0, index_col=0)
-        dat['kongplong_q'] = dat_q['Kon_Plong']
-        dat['dakmot_q'] = dat_q['Dak_Mot']
-        dat['giangson_q'] = dat_q['Giang_Son']
 
         train_size = int(dat.shape[0] * (1 - self.dt_split_point))
         test_size = int(train_size * self.dt_split_point / 2)
@@ -111,42 +102,42 @@ class MultiRNN:
     def build_model(self):
         input = Input(shape=(None, self.input_dim))
 
-        # conv = Conv1D(filters=16, kernel_size=2, strides=1, padding='same')
-        # conv_out = conv(input)
-        # conv_2 = Conv1D(filters=32, kernel_size=3, padding='same')
-        # conv_out_2 = conv_2(conv_out)
-        # conv_3 = Conv1D(filters=64, kernel_size=4, padding='same')
-        # conv_out_3 = conv_3(conv_out_2)
+        conv = Conv1D(filters=16, kernel_size=2, strides=1, padding='same')
+        conv_out = conv(input)
+        conv_2 = Conv1D(filters=32, kernel_size=3, padding='same')
+        conv_out_2 = conv_2(conv_out)
+        conv_3 = Conv1D(filters=64, kernel_size=4, padding='same')
+        conv_out_3 = conv_3(conv_out_2)
 
         #batch_norm = BatchNormalization()(conv_out_3)
-        # rnn_1 = Bidirectional(
-        #     LSTM(units=128,
-        #          return_sequences=True,
-        #          return_state=True,
-        #          dropout=self.dropout,
-        #          recurrent_dropout=self.dropout))
-        # rnn_out_1, forward_h, forward_c, backward_h, backward_c = rnn_1(input)
-        # state_h = Concatenate(axis=-1)([forward_h, backward_h])
-        # state_c = Concatenate(axis=-1)([forward_c, backward_c])
+        rnn_1 = Bidirectional(
+            LSTM(units=128,
+                 return_sequences=True,
+                 return_state=True,
+                 dropout=self.dropout,
+                 recurrent_dropout=self.dropout))
+        rnn_out_1, forward_h, forward_c, backward_h, backward_c = rnn_1(conv_out_3)
+        state_h = Concatenate(axis=-1)([forward_h, backward_h])
+        state_c = Concatenate(axis=-1)([forward_c, backward_c])
 
-        rnn_2 = Bidirectional(
-            LSTM(units=128, return_sequences=False, dropout=self.dropout, recurrent_dropout=self.dropout))
-        rnn_out_2 = rnn_2(input)
+        # rnn_2 = Bidirectional(
+        #     LSTM(units=128, return_sequences=False, dropout=self.dropout, recurrent_dropout=self.dropout))
+        # rnn_out_2 = rnn_2(input)
         #initial_state=[forward_h, forward_c, backward_h, backward_c])
 
         #NOTE: add noise to regularize does not work :((
         # in_noise = GaussianNoise(stddev=0.01,
         #                          input_shape=(None, self.input_dim))(rnn_out_2)
 
-        # rnn_3 = LSTM(units=256,return_sequences=True,return_state=True)
-        # rnn_out_3, state_h_3, state_c_3 = rnn_3(rnn_out_2)
+        rnn_3 = LSTM(units=256, return_sequences=False, return_state=False)
+        rnn_out_3 = rnn_3(rnn_out_1, initial_state=[state_h, state_c])
 
         # rnn_4_in = Concatenate(axis=-1)([rnn_out_2,rnn_out_3])
         # rnn_4 = LSTM(units=256,return_sequences=False)
         # rnn_out_4 = rnn_4(rnn_4_in)
 
         reshape_l = Reshape(target_shape=(self.target_timestep, -1))
-        rnn_out = reshape_l(rnn_out_2)
+        rnn_out = reshape_l(rnn_out_3)
 
         # dense_1 = TimeDistributed(Dense(units=64,activation='relu'))
         # dense_1_out = dense_1(rnn_4_out)
@@ -244,6 +235,12 @@ class MultiRNN:
 
         mask[-test_shape:, self.cols_y] = result[:, 0, :]
         actual_predict = self.data['scaler'].inverse_transform(mask)[-test_shape:, self.cols_y]
+
+        predict_frame = pd.read_csv('./Log/DataAnalysis/predict_val.csv')
+        predict_frame['rnn_cnn_q'] = actual_predict[-200:, 0]
+        predict_frame['rnn_cnn_h'] = actual_predict[-200:, 1]
+
+        predict_frame.to_csv('./Log/DataAnalysis/predict_val.csv', index=None)
 
         return actual_data, actual_predict
 

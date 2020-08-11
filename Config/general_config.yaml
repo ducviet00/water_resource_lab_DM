@@ -1,0 +1,24 @@
+log_dir: Log/ANN/
+data:
+  data_file: ProcessedData/SonTay.csv
+  split_point: 0.15
+  norm_method: min_max
+  cols_x:
+    - 0
+    - 1
+    - 4
+    - 5
+    - 6
+  cols_y:
+    - 3
+    - 2
+  target_timestep: 1
+model:
+  window_size: 5
+  batch_size: 128
+  epochs: 450
+  input_dim: 5
+  output_dim: 2
+  patience: 50
+  dropout: 0.1
+  lr_decay: 0.000001

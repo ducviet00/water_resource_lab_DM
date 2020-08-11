@@ -96,15 +96,14 @@ def atted_extract_data(dataframe, window_size=5, cols=[], mode='l2'):  #NOTE: un
     return en_x, de_x, de_y, scaler
 
 
-def roll_data(link, window_size, target_col, cols_x, cols_y):
-    dataframe = pd.read_csv(link, header=0, index_col=0)
-    dataframe = dataframe.drop('time', axis=1)
-    dataframe = dataframe.to_numpy()
+def roll_data(dataframe, cols_x, cols_y, mode='min_max'):
+    dataframe, scaler = normalize_data(dataframe, mode)
+    #dataframe = dataframe.drop('time', axis=1)
 
     X = dataframe[:, cols_x]
     y = dataframe[:, cols_y]
 
-    return X, y
+    return X, y, scaler
 
 
 def process_evaporation(full_dat, vapor_dat):
@@ -135,8 +134,119 @@ def process_evaporation(full_dat, vapor_dat):
     full_dat.to_csv('./Kontum-daily.csv')
 
 
-if __name__ == '__main__':
-    full_dat = pd.read_csv('./RawData/Kontum-daily.csv', header=0, index_col=0)
-    vapor_dat = pd.read_csv('./RawData/KonTum.csv', header=0, index_col=None)
+def plot_compare_model():
+    dat = pd.read_csv('./Log/DataAnalysis/predict_val.csv', header=0)
+    # dat_arima = pd.read_csv('./Log/Arima/arima.csv', header=0, index_col=0)
 
-    process_evaporation(full_dat, vapor_dat)
+    # dat['arima_q'] = dat_arima['arima_q_hanoi']
+    # dat['arima_h'] = dat_arima['arima_h_hanoi']
+
+    # dat.to_csv('./Log/DataAnalysis/predict_val.csv', index=None)
+    import matplotlib.pyplot as plt
+
+    plt.plot(dat['real_q'], label='ground_truth')
+    plt.plot(dat['ensemble_q'], label='ensemble')
+    plt.plot(dat['rnn_cnn_q'], label='rnn_cnn')
+    plt.plot(dat['en_de_q'], label='encoder_decoder')
+    plt.legend(loc='best')
+    plt.xlabel('Time')
+    plt.ylabel('Q')
+    plt.title('Các mô hình đề xuất')
+    plt.savefig('./Log/DataAnalysis/our_model_q.png')
+    plt.clf()
+
+    plt.plot(dat['real_h'], label='ground_truth')
+    plt.plot(dat['ensemble_h'], label='ensemble')
+    plt.plot(dat['rnn_cnn_h'], label='rnn_cnn')
+    plt.plot(dat['en_de_h'], label='encoder_decoder')
+    plt.legend(loc='best')
+    plt.xlabel('Time')
+    plt.ylabel('H')
+    plt.title('Các mô hình đề xuất')
+
+    plt.savefig('./Log/DataAnalysis/our_model_h.png')
+    plt.clf()
+
+    plt.plot(dat['lstm_q'], label='lstm')
+    plt.plot(dat['ann_q'], label='ann')
+    plt.plot(dat['arima_q'], label='arima')
+    plt.plot(dat['real_q'], label='ground_truth')
+
+    plt.legend(loc='best')
+    plt.xlabel('Time')
+    plt.ylabel('Q')
+    plt.title('Các mô hình hiện tại')
+    plt.savefig('./Log/DataAnalysis/paper_model_q.png')
+    plt.clf()
+
+    plt.plot(dat['lstm_h'], label='lstm')
+    plt.plot(dat['ann_h'], label='ann')
+    plt.plot(dat['arima_h'], label='arima')
+    plt.plot(dat['real_h'], label='ground_truth')
+
+    plt.legend(loc='best')
+    plt.xlabel('Time')
+    plt.ylabel('H')
+    plt.title('Các mô hình hiện tại')
+    plt.savefig('./Log/DataAnalysis/paper_model_h.png')
+    plt.clf()
+
+    plt.plot(dat['real_q'], label='ground_truth')
+    plt.plot(dat['ensemble_q'], label='ensemble')
+    plt.plot(dat['rnn_cnn_q'], label='rnn_cnn')
+    plt.plot(dat['en_de_q'], label='encoder_decoder')
+    plt.plot(dat['lstm_q'], label='lstm')
+    plt.plot(dat['ann_q'], label='ann')
+    plt.plot(dat['arima_q'], label='arima')
+    plt.legend(loc='best')
+    plt.xlabel('Time')
+    plt.ylabel('Q')
+    plt.title('Mọi mô hình')
+    plt.savefig('./Log/DataAnalysis/compare_q.png')
+    plt.clf()
+
+    plt.plot(dat['real_h'], label='ground_truth')
+    plt.plot(dat['ensemble_h'], label='ensemble')
+    plt.plot(dat['rnn_cnn_h'], label='rnn_cnn')
+    plt.plot(dat['en_de_h'], label='encoder_decoder')
+    plt.plot(dat['lstm_h'], label='lstm')
+    plt.plot(dat['ann_h'], label='ann')
+    plt.plot(dat['arima_h'], label='arima')
+    plt.legend(loc='best')
+    plt.xlabel('Time')
+    plt.ylabel('H')
+    plt.title('Mọi mô hình')
+    plt.savefig('./Log/DataAnalysis/compare_H.png')
+    plt.clf()
+
+
+def plot_PM():
+    import matplotlib.pyplot as plt
+
+    gt = pd.read_csv('./RawData/PM/groundtruth.csv', header=None)
+    pre = pd.read_csv('./RawData/PM/preds.csv', header=None)
+
+    plt.plot(gt[1], label='ground_truth')
+    plt.plot(pre[1], label='predict')
+
+    plt.legend(loc='best')
+    plt.xlabel('Thời gian')
+    plt.ylabel('Lượng mưa')
+    plt.title('Kết quả mô hình')
+    plt.savefig('./Log/DataAnalysis/compare_pm.png')
+
+
+if __name__ == '__main__':
+    # full_dat = pd.read_csv('./RawData/Kontum-daily.csv', header=0, index_col=0)
+    # vapor_dat = pd.read_csv('./RawData/KonTum.csv', header=0, index_col=None)
+
+    # process_evaporation(full_dat, vapor_dat)
+
+    # data = pd.read_csv('./RawData/Hanoi/Merge_HN.csv', header=0, index_col=0)
+    # data = data.set_index('date')
+    # data = data.drop(['date.1', 'date.2'], axis=1)
+    # print(data.head())
+    # data.to_csv('./RawData/Hanoi/Merge_HN.csv')
+    # data = data.to_numpy()
+    # print(data.shape)
+    plot_PM()

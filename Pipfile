@@ -1,0 +1,25 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+yapf = "*"
+
+[packages]
+matplotlib = "*"
+pandas = "*"
+keras = "*"
+scikit-learn = "*"
+tensorflow = "==2.0.0"
+pyyaml = "*"
+pydot = "==1.2.3"
+graphviz = "*"
+seaborn = "*"
+statsmodels = "*"
+xgboost = "*"
+geopy = "*"
+fastdtw = "*"
+
+[requires]
+python_version = "3.6"

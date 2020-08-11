@@ -38,7 +38,7 @@ class Ensemble:
 
     def generate_data(self):
         dat = pd.read_csv(self.data_file, header=0, index_col=0)
-        dat_q = pd.read_csv('./RawData/Kontum-daily.csv', header=0, index_col=0)
+        #dat_q = pd.read_csv('./RawData/Kontum-daily.csv', header=0, index_col=0)
         #gen_dat = gen_dat.to_numpy()
         dat = dat.to_numpy()
 
@@ -132,7 +132,6 @@ class Ensemble:
                                                       epoch,
                                                       save_dir=self.log_dir + 'ModelPool/')
                 elif self.model_kind == 'en_de':
-                    #TODO: finish all things related encoder decoder model
                     from Models.en_de import train_model
                     self.inner_model, _ = train_model(self.inner_model,
                                                       self.data['en_x_train_in'],
@@ -181,9 +180,12 @@ class Ensemble:
         return x_train_out, x_test_out
 
     def data_out_generate(self, x_train_out, x_test_out):
-        self.data['x_train_out'] = x_train_out
+        shape = x_train_out.shape
+        self.data['x_train_out'] = x_train_out.reshape(shape[0], shape[1], -1)
+        print(self.data['x_train_out'].shape)
         self.data['y_train_out'] = self.data['y_test_in']  #.reshape(-3,self.target_timestep * self.output_dim)
-        self.data['x_test_out_submodel'] = x_test_out
+        shape = x_test_out.shape
+        self.data['x_test_out_submodel'] = x_test_out.reshape(shape[0], shape[1], -1)
         self.data['y_test_out'] = self.data['y_test_out']  #.reshape(-3,self.target_timestep * self.output_dim)
 
     #TODO: change to multiple timestep
@@ -200,7 +202,7 @@ class Ensemble:
         #print(self.data['x_train_out'][:3])
         #print(self.data['x_train_out'].head())
 
-        input_submodel = Input(shape=(self.data['sub_model'], self.output_dim))
+        input_submodel = Input(shape=(self.target_timestep, self.output_dim * self.data['sub_model']))
         input_val_x = Input(shape=(self.window_size, self.input_dim))
 
         # conv = Conv1D(filters=16,kernel_size=2,strides=1,padding='same')
@@ -260,14 +262,14 @@ class Ensemble:
             callbacks.append(checkpoint)
 
             if self.model_kind == 'rnn_cnn':
-                history = self.outer_model.fit(x=[self.data['x_train_out'][:, 0, :, :], self.data['x_test_in']],
+                history = self.outer_model.fit(x=[self.data['x_train_out'], self.data['x_test_in']],
                                                y=self.data['y_train_out'],
                                                batch_size=self.batch_size,
                                                epochs=self.epochs_out,
                                                callbacks=callbacks,
                                                validation_split=0.1)
             elif self.model_kind == 'en_de':
-                history = self.outer_model.fit(x=[self.data['x_train_out'][:, 0, :, :], self.data['en_x_test_in']],
+                history = self.outer_model.fit(x=[self.data['x_train_out'], self.data['en_x_test_in']],
                                                y=self.data['y_train_out'],
                                                batch_size=self.batch_size,
                                                epochs=self.epochs_out,
@@ -300,11 +302,11 @@ class Ensemble:
         plt.savefig(self.log_dir + 'training_phase.png')
 
     def predict_and_plot(self):
-        x_extract_by_day = self.data['x_test_out_submodel'][:, 0, :, :]
+        # x_extract_by_day = self.data['x_test_out_submodel'][:, 0, :, :]
         if self.model_kind == 'rnn_cnn':
-            results = self.outer_model.predict(x=[x_extract_by_day, self.data['x_test_out']])
+            results = self.outer_model.predict(x=[self.data['x_test_out_submodel'], self.data['x_test_out']])
         elif self.model_kind == 'en_de':
-            results = self.outer_model.predict(x=[x_extract_by_day, self.data['en_x_test_out']])
+            results = self.outer_model.predict(x=[self.data['x_test_out_submodel'], self.data['en_x_test_out']])
         print(f'The output shape: {results.shape}')
 
         fig = plt.figure(figsize=(10, 6))
@@ -334,6 +336,14 @@ class Ensemble:
 
         mask[-test_shape:, self.cols_y] = result[:, 0, :]
         actual_predict = self.data['scaler'].inverse_transform(mask)[-test_shape:, self.cols_y]
+
+        predict_frame = pd.DataFrame(actual_data[-200:, 0], columns=['real_q'])
+        predict_frame['real_h'] = actual_data[-200:, 1]
+
+        predict_frame['ensemble_q'] = actual_predict[-200:, 0]
+        predict_frame['ensemble_h'] = actual_predict[-200:, 1]
+
+        predict_frame.to_csv('./Log/DataAnalysis/predict_val.csv', index=None)
 
         return actual_data, actual_predict
 

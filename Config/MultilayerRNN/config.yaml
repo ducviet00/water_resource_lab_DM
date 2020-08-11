@@ -1,25 +1,26 @@
 log_dir: Log/MultilayerRNN/
 data:
-  data_file: RawData/Kontum-daily.csv
+  data_file: RawData/Hanoi/Merge_HN.csv
   split_point: 0.15
   norm_method: min_max
   cols_x:
+    - 0
+    - 1
+    - 2
     - 3
     - 4
-    - 5
-    - 6
-    - 7
-    - 9
-    - 10
+    - 16
+    - 17
+    - 18
   cols_y:
-    - 5
-    - 7
+    - 17
+    - 3
   target_timestep: 1
 model:
   window_size: 5
   batch_size: 128
   epochs: 450
-  input_dim: 7
+  input_dim: 8
   output_dim: 2
   patience: 50
   dropout: 0.1

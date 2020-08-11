@@ -182,6 +182,12 @@ class EncoderDecoder:
         mask[-test_shape:, self.cols_y] = result[:, 0, :]
         actual_predict = self.data['scaler'].inverse_transform(mask)[-test_shape:, self.cols_y]
 
+        predict_frame = pd.read_csv('./Log/DataAnalysis/predict_val.csv')
+        predict_frame['en_de_q'] = actual_predict[-200:, 0]
+        predict_frame['en_de_h'] = actual_predict[-200:, 1]
+
+        predict_frame.to_csv('./Log/DataAnalysis/predict_val.csv', index=None)
+
         return actual_data, actual_predict
 
     def evaluate_model(self):

@@ -1,4 +1,4 @@
-wind,max_temp,min_temp,solar_r,humidity,discharge,rain,water_level
+"wind","max_temp","min_temp","solar_r","humidity","discharge","rain","water_level"
 1.75,18.2,18.2,20.584,0.735,96.05,0.0,515.905
 1.5,18.05,18.05,21.1275,0.74,93.05,0.0,515.885
 1.25,18.1,18.1,18.815,0.73,90.8,0.0,515.87

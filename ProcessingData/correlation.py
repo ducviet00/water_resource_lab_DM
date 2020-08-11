@@ -86,7 +86,7 @@ def data_group():
 
 
 if __name__ == '__main__':
-    data = pd.read_csv('./RawData/Kontum-daily.csv', header=0, index_col=0)
+    data = pd.read_csv('./RawData/Hanoi/Merge_HN.csv', header=0, index_col=0)
     #month = data_group()
     #print(month.head())
     #data = data.drop('time', axis=1)
